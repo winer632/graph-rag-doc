@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Graph-RAG 系统技术方案--王欣鑫</title>
+    <title>Graph-RAG 系统技术方案 (KAG Enhanced)</title>
     <!-- 引入 Mermaid 用于渲染图表 -->
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
@@ -22,6 +22,8 @@
             --sidebar-bg: #f3f4f6;
             --code-bg: #282c34;
             --border-color: #e5e7eb;
+            --warning-bg: #fff7ed;
+            --warning-border: #fdba74;
         }
 
         body {
@@ -116,6 +118,15 @@
             border-radius: 0 8px 8px 0;
         }
 
+        /* 警告/注意块 */
+        .warning-box {
+            border-left: 4px solid var(--warning-border);
+            background-color: var(--warning-bg);
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
         /* Mermaid 图表容器 */
         .mermaid-container {
             background: #fff;
@@ -147,31 +158,36 @@
             <li><a href="#architecture">2. 总体架构图</a></li>
             <li><a href="#pipeline-data">3. 离线数据处理流程</a></li>
             <ul>
-                <li><a href="#parsing">3.1 文档解析与切分</a></li>
-                <li><a href="#extraction">3.2 LLM 信息抽取</a></li>
-                <li><a href="#normalization">3.3 实体归一化 (核心)</a></li>
-                <li><a href="#construction">3.4 图谱构建与合并</a></li>
+                <li><a href="#schema">3.1 Schema 定义 (Schema-First)</a></li>
+                <li><a href="#parsing">3.2 文档解析与切分</a></li>
+                <li><a href="#extraction">3.3 LLM 信息抽取</a></li>
+                <li><a href="#normalization">3.4 实体归一化</a></li>
+                <li><a href="#indexing">3.5 互索引构建 (Mutual Indexing)</a></li>
             </ul>
             <li><a href="#pipeline-query">4. 在线问答处理流程</a></li>
-            <li><a href="#analysis">5. 方案优缺点分析</a></li>
+            <ul>
+                <li><a href="#planning">4.1 逻辑规划 (Schema-Guided)</a></li>
+                <li><a href="#reasoning">4.2 推理与检索</a></li>
+            </ul>
+            <li><a href="#analysis">5. 方案分析与差距对比</a></li>
         </ul>
     </nav>
 
     <!-- 主内容 -->
     <main>
         <header>
-            <h1>Graph-RAG 系统技术方案</h1>
-            <p><strong>版本：</strong> v1.0 | <strong>状态：</strong> Draft | <strong>作者：</strong> 王欣鑫</p>
+            <h1>Graph-RAG 系统技术方案 (KAG Enhanced)</h1>
+            <p><strong>版本：</strong> v2.1 | <strong>状态：</strong> Draft | <strong>作者：</strong> 王欣鑫</p>
         </header>
 
         <section id="overview">
             <h2>1. 概述</h2>
-            <p>本方案旨在构建一个结合知识图谱（Knowledge Graph, KG）与大语言模型（LLM）的 RAG 系统。通过将非结构化文档转化为“实体-关系”的图谱结构，解决传统向量检索在处理复杂逻辑、多跳推理及全局理解上的不足。</p>
+            <p>本方案旨在构建一个结合知识图谱（Knowledge Graph, KG）与大语言模型（LLM）的工业级 RAG 系统。参考 <strong>OpenSPG/KAG</strong> 的设计理念，通过引入 <strong>Schema 约束</strong>、<strong>互索引机制</strong> 和 <strong>逻辑求解器</strong>，解决传统 RAG 在处理复杂逻辑、多跳推理及专业领域知识精度上的不足。</p>
             <blockquote>
                 <strong>核心理念：</strong><br>
-                • <strong>文档即图谱：</strong>利用 LLM 提取文档中的实体与关系。<br>
-                • <strong>图文关联：</strong>图谱中的节点（实体）与原始文档切片（Chunk）保持索引关联。<br>
-                • <strong>混合检索：</strong>查询时通过图谱的跳数（Hop）扩展上下文，而非仅靠关键词匹配。
+                • <strong>Schema-First：</strong> 预定义领域本体（实体/概念/事件），确保知识抽取的规范性。<br>
+                • <strong>互索引 (Mutual Indexing)：</strong> 建立文本切片与图谱节点的双向映射，实现混合检索。<br>
+                • <strong>逻辑求解：</strong> 将自然语言转化为逻辑计划，支持计算与推理，而非仅靠语义匹配。
             </blockquote>
         </section>
 
@@ -181,21 +197,22 @@
                 <div class="mermaid">
 graph TD
     subgraph "离线数据处理流程 (Data Pipeline)"
-        A[原始文档 PDF/Word/MD] --> B(文档解析 Parsing)
+        Init[Schema/Ontology 定义] --> A[原始文档 PDF/Word/MD]
+        A --> B(文档解析 Parsing)
         B --> C(文本切分 Chunking)
         C --> D{LLM 信息抽取}
-        D -->|提取实体| E[实体 Entity]
+        D -->|基于 Schema| E[实体/概念/事件]
         D -->|提取关系| F[关系 Relation]
         E & F --> G(实体归一化 Normalization)
         G --> H(图谱构建 Graph Construction)
         H --> I[(图数据库 Neo4j)]
         C --> J[(向量/文本数据库)]
-        I -.->|关联 chunk_id| J
+        I <-->|互索引 Mutual Indexing| J
     end
 
     subgraph "在线问答处理流程 (Query Pipeline)"
-        U[用户提问] --> V(查询理解/实体识别)
-        V --> W(图谱检索 & 多跳扩展)
+        U[用户提问] --> V(逻辑规划 Logic Planning)
+        V --> W(推理与检索 Reasoning & Retrieval)
         W --> X(获取关联 Chunk 内容)
         X --> Y(上下文重组 Context Merge)
         Y --> Z(LLM 答案生成)
@@ -207,244 +224,215 @@ graph TD
 
         <section id="pipeline-data">
             <h2>3. 离线数据处理流程</h2>
-            <p>此流程负责将非结构化数据转化为结构化知识并入库，是 Graph-RAG 的基石。</p>
+            <p>此流程负责将非结构化数据转化为结构化知识并入库。与传统 Graph-RAG 不同，我们引入了 <strong>Schema-First</strong> 和 <strong>DIKW (Data-Information-Knowledge-Wisdom)</strong> 建模思想。</p>
 
-            <h3 id="parsing">3.1 文档解析与切分 (Parsing & Chunking)</h3>
+            <h3 id="schema">3.1 Schema 定义 (Schema-First)</h3>
+            <p>在解析文档前，必须定义领域的 Schema。这不仅是类型列表，更是对属性和逻辑的约束。</p>
+            <pre><code class="language-python">class SchemaConfig:
+    # 1. 实体 (Entity): 具体存在的对象
+    ENTITIES = ['Person', 'Company', 'Product']
+    
+    # 2. 概念 (Concept): 抽象的分类或领域术语
+    CONCEPTS = ['Industry', 'Technology', 'Regulation']
+    
+    # 3. 事件 (Event): 动态发生的动作，包含时间/地点
+    EVENTS = ['Acquisition', 'Release', 'Lawsuit']
+    
+    # 4. 属性约束 (Properties): 定义每个类型必须包含的字段
+    PROPERTIES = {
+        'Company': ['revenue', 'employee_count', 'founded_date'],
+        'Event': ['event_date', 'location', 'participants']
+    }</code></pre>
+
+            <h3 id="parsing">3.2 文档解析与切分 (Parsing & Chunking)</h3>
             <ul>
                 <li><strong>输入：</strong> PDF, Word, Markdown, HTML 等格式文件。</li>
                 <li><strong>处理逻辑：</strong>
                     <ol>
-                        <li><strong>加载 (Loader)：</strong> 使用商汤科技的 autopdf 等文档解析工具将不同格式文件转换为 Markdown 格式。</li>
-                        <li><strong>切分 (Splitter)：</strong> 采用混合切分策略：
-                            <ul>
-                                <li>基于 Markdown 标题的结构化切分。</li>
-                                <li>特殊内容保护（表格、图片不打碎）。</li>
-                                <li>递归字符切分（Recursive Character Splitting）处理长文本。</li>
-                                <li>Token 级别切分，确保符合 LLM 窗口限制。</li>
-                            </ul>
-                        </li>
-                        <li><strong>索引化：</strong> 为每个切片生成唯一的 <code>chunk_id</code>，作为后续图谱回溯原文的锚点。</li>
+                        <li><strong>加载 (Loader)：</strong> 使用商汤科技的 autopdf 等工具转换为 Markdown。</li>
+                        <li><strong>切分 (Splitter)：</strong> 采用混合切分策略（Markdown 结构化切分 + 递归字符切分），并对特殊内容（图片、代码块）进行保护。</li>
+                        <li><strong>索引化：</strong> 生成唯一 <code>chunk_id</code>。</li>
                     </ol>
                 </li>
             </ul>
 
-            <h3 id="extraction">3.2 LLM 信息抽取 (LLM-based Extraction)</h3>
-            <p>直接利用 LLM 的理解能力，从 Chunk 中提取结构化数据。在此阶段，我们需要引入<strong>类型约束</strong>以保证数据质量。</p>
+            <h3 id="extraction">3.3 LLM 信息抽取 (LLM-based Extraction)</h3>
+            <p>利用 LLM 进行抽取时，将 Schema 定义注入 Prompt，强制 LLM 输出符合规范的结构化数据，并显式区分实体、概念和事件。</p>
             
-            <h4>核心代码实现：实体抽取与类型约束</h4>
-            <pre><code class="language-python">class Config:
-    # 1. 定义类型列表 (业务强约束)
-    ALLOWED_TYPES = [
-        'Person', 'Organization', 'Location', 
-        'Event', 'Concept', 'Document', 'Other'
-    ]
-
-def extract_entities_from_chunk(text_chunk):
+            <pre><code class="language-python">def extract_knowledge_from_chunk(text_chunk, schema_config):
     """
-    利用 LLM 从文本块中抽取实体，并强制约束类型。
+    基于 Schema 的知识抽取
     """
     system_prompt = f"""
-    你是一个知识图谱实体抽取专家。请从文本中提取实体。
+    你是一个领域知识图谱构建专家。请根据以下 Schema 定义从文本中提取知识。
     
-    【类型约束】
-    实体的类型必须严格属于以下列表：{Config.ALLOWED_TYPES}。
-    如果实体不属于列表中的任何一项，请归类为 'Other' 或列表中语义最接近的项。
+    【Schema 定义】
+    - 实体类型: {schema_config.ENTITIES}
+    - 概念类型: {schema_config.CONCEPTS}
+    - 事件类型: {schema_config.EVENTS} (注意提取时间 event_date)
+    - 属性约束: {schema_config.PROPERTIES}
     
-    【输出格式】
-    JSON List: [{{ "name": "实体名", "type": "类型", "context": "所在的上下文句子" }}]
+    【输出要求】
+    1. 严格遵守类型定义，不要创造 Schema 之外的类型。
+    2. 对于事件，必须提取时间要素，以便构建时序关系。
+    3. 输出格式为 JSON。
     """
     
-    user_prompt = f"文本内容：{text_chunk}"
+    # 调用 LLM 执行抽取
+    return call_llm(system_prompt, text_chunk)</code></pre>
+
+            <h3 id="normalization">3.4 实体归一化 (Normalization)</h3>
+            <p>采用多级漏斗机制：<strong>字面匹配 -> 语义相似度 -> LLM 深度裁决</strong>，解决多源数据融合问题。</p>
+            <pre><code class="language-python">def is_same_entity(new_node, existing_node):
+    # 1. 极速通道：字面完全一致
+    if new_node.name == existing_node.name: return True
     
-    # 调用 LLM (伪代码)
-    raw_entities = call_llm(system_prompt, user_prompt)
+    # 2. 向量相似度检查
+    sim = cosine_similarity(new_node.embedding, existing_node.embedding)
+    if sim < 0.6: return False # 快速拒绝
     
-    # 预处理：计算 Embedding，为后续归一化做准备
-    processed_entities = []
-    for e in raw_entities:
-        # 混合名称和上下文做向量，增加区分度
-        e['embedding'] = get_embedding(e['name'] + " " + e['context']) 
-        processed_entities.append(e)
-        
-    return processed_entities</code></pre>
-
-            <h3 id="normalization">3.3 实体归一化 (Normalization)</h3>
-            <p>这是解决“同名异义”或“异名同义”的关键步骤。我们采用多级漏斗机制：<strong>字面匹配 -> 语义相似度 -> LLM 深度裁决</strong>。</p>
-
-            <h4>核心代码实现：归一化判定逻辑</h4>
-            <pre><code class="language-python"># 阈值常量定义
-THRESHOLD_SEMANTIC_HIGH = 0.92  # 语义极高：确信是同一个意思
-THRESHOLD_SEMANTIC_LOW = 0.60   # 语义过低：确信没关系
-THRESHOLD_STRING_SAFE = 0.70    # 字面相似：拼写微调或包含关系
-THRESHOLD_STRING_EXACT = 1.0    # 字面完全一致
-
-def is_same_entity(new_entity, existing_entity):
-    """
-    判断两个实体是否为同一个，并返回判定结果。
-    """
-    candidate_name = new_entity['name']
-    target_name = existing_entity['name']
+    # 3. LLM 深度裁决 (处理别名、全称简称、版本号等复杂情况)
+    if sim > 0.92: return True # 快速通过
     
-    # 1. [极速通道] 字面完全一致 -> 视为同一实体
-    if candidate_name.lower() == target_name.lower():
-        return True
+    return llm_judge(new_node, existing_node)</code></pre>
 
-    # 计算分数
-    sem_score = cosine_similarity(new_entity['embedding'], existing_entity['embedding'])
-    str_score = levenshtein_ratio(candidate_name, target_name)
-
-    # 2. [快速拒绝通道] 语义完全不相关 -> 拒绝
-    if sem_score < THRESHOLD_SEMANTIC_LOW:
-        return False
-
-    # 3. [快速通过通道] 语义极高 + 字面较像 -> 通过
-    if sem_score > THRESHOLD_SEMANTIC_HIGH and str_score > THRESHOLD_STRING_SAFE:
-        # 额外检查：如果类型完全冲突（如 Person vs Location），即使语义像也不能通过
-        if new_entity['type'] != existing_entity['type'] and \
-           new_entity['type'] != 'Other' and existing_entity['type'] != 'Other':
-             pass # 类型强冲突，转入 LLM 裁决
-        else:
-            return True
-
-    # 4. [LLM 裁判通道] 处理“中间地带” (如别名、包含关系、版本差异)
-    print(f"LLM 裁决: {candidate_name} vs {target_name}")
-    return llm_judge_is_same(new_entity, existing_entity)
-
-def llm_judge_is_same(entity_a, entity_b):
-    """
-    LLM 深度裁决 Prompt
-    """
-    prompt = f"""
-    判断实体 A 和 实体 B 在知识图谱中是否应合并为【同一个】节点。
-    实体 A: {entity_a['name']} (类型: {entity_a['type']}, 上下文: {entity_a['context']})
-    实体 B: {entity_b['name']} (类型: {entity_b['type']}, 上下文: {entity_b['context']})
-    
-    判决逻辑：
-    1. [别名/全称] 如 "Elon Musk" 和 "Musk" -> True
-    2. [版本/型号] 如 "iPhone 14" 和 "iPhone 15" -> False
-    3. [包含/从属] 如 "阿里云" 和 "阿里集团" -> False
-    4. [不同指代] 如 "苹果(水果)" 和 "苹果(公司)" -> False
-    
-    返回 JSON: {{"is_same": boolean, "reason": "string"}}
-    """
-    return call_llm(prompt)['is_same']</code></pre>
-
-            <h3 id="construction">3.4 图谱构建与合并 (Graph Construction & Merging)</h3>
-            <p>在判定实体一致性后，需要执行合并操作，并进行<strong>类型对齐</strong>，确保图谱 Schema 的整洁。</p>
-
-            <h4>核心代码实现：合并与类型对齐</h4>
-            <pre><code class="language-python">def process_and_merge_entity(new_entity, knowledge_graph):
-    """
-    主流程：将新抽取的实体 归一化 并 写入图谱
-    """
-    # 1. 候选召回：从图谱中检索 Top-K 相似实体
-    candidates = knowledge_graph.search_candidates(
-        query_vec=new_entity['embedding'], top_k=5
-    )
-    
-    matched_entity = None
-    # 2. 遍历候选者进行判定
-    for candidate in candidates:
-        if is_same_entity(new_entity, candidate):
-            matched_entity = candidate
-            break 
-    
-    # 3. 执行合并策略
-    if matched_entity:
-        final_id = matched_entity['id']
-        
-        # 类型对齐：优先保留更准确的类型
-        final_type = align_types(matched_entity['type'], new_entity['type'])
-        
-        if final_type != matched_entity['type']:
-            knowledge_graph.update_node_type(final_id, final_type)
+            <h3 id="indexing">3.5 互索引构建 (Mutual Indexing)</h3>
+            <p>这是 KAG 架构的核心。我们需要建立向量索引与图谱索引的双向映射，以支持混合检索。为了保证数据一致性，采用<strong>“处理完再入库”</strong>的流水线模式。</p>
             
-        # (可选) 别名融合
-        knowledge_graph.add_alias(final_id, new_entity['name'])
-    else:
-        # 未命中 -> 创建新节点
-        final_id = knowledge_graph.create_node(
-            name=new_entity['name'], 
-            type=new_entity['type'], 
-            embedding=new_entity['embedding']
-        )
-        
-    return final_id
-
-def align_types(existing_type, new_type):
-    """
-    类型对齐逻辑：具体类型 > 抽象类型 > Other
-    """
-    if existing_type == new_type: return existing_type
+            <div class="mermaid-container">
+                <div class="mermaid">
+sequenceDiagram
+    participant Doc as 文档处理
+    participant LLM as LLM抽取
+    participant Norm as 归一化模块
+    participant GraphDB as 图数据库(Neo4j)
+    participant VectorDB as 向量数据库
     
-    high_priority_types = ['Person', 'Organization', 'Location', 'Event']
+    Doc->>Doc: 1. 切分文档，生成 chunk_id (UUID)
+    Doc->>LLM: 2. 输入 Chunk 文本
+    LLM-->>Doc: 返回实体提及 (Mentions: "A公司")
     
-    # 如果现有的是 Other/Concept，新的是具体类型 -> 更新为新的
-    if existing_type in ['Other', 'Concept'] and new_type in high_priority_types:
-        return new_type
-        
-    # 默认保持现有
-    return existing_type</code></pre>
+    Doc->>Norm: 3. 请求归一化 ("A公司")
+    Norm->>GraphDB: 查询/创建实体 ID
+    GraphDB-->>Norm: 返回 entity_id (Company:1001)
+    Norm-->>Doc: 返回 ID 列表 [Company:1001]
+    
+    par 并行写入 (双写)
+        Doc->>GraphDB: 4. 写图谱: 节点 Company:1001 关联 source_chunk_id
+        Doc->>VectorDB: 5. 写向量: Chunk 向量 + Metadata {related_ids: [Company:1001]}
+    end
+                </div>
+            </div>
         </section>
 
         <section id="pipeline-query">
             <h2>4. 在线问答处理流程</h2>
-            <p>此流程负责利用构建好的图谱回答用户问题。</p>
+            <p>从传统的“关键词匹配”升级为“逻辑求解器 (Solver)”。</p>
+
+            <h3 id="planning">4.1 逻辑规划 (Schema-Guided Logic Planning)</h3>
+            <p>利用 <strong>Schema 约束</strong> 和 <strong>KG-Solver</strong>，将自然语言转化为可执行的 <strong>KGDSL (领域特定语言)</strong>，并通过校验机制保证稳定性。</p>
+            
+            <h4>处理流程：</h4>
             <ol>
-                <li><strong>问题理解与实体提取：</strong>
+                <li><strong>实体链接 (Grounding)：</strong> 首先将问题中的“A公司”映射为图谱中的唯一 ID <code>Company:1001</code>，而非仅靠文本生成。</li>
+                <li><strong>Schema 约束生成：</strong> 将领域 Schema（如 Company 有 revenue 属性）注入 Prompt，限制 LLM 只能生成合法的属性名。</li>
+                <li><strong>DSL 生成：</strong> 生成标准化的查询语句。</li>
+            </ol>
+
+            <h4>示例：</h4>
+            <ul>
+                <li><strong>输入：</strong> "A公司2023年的营收相比2022年增长了多少？"</li>
+                <li><strong>输出计划 (KGDSL 伪代码)：</strong></li>
+            </ul>
+            <pre><code class="language-text">// 1. 实体锚定 (由 Entity Linking 模块完成，非 LLM 生成)
+$e = Entity(type="Company", id="1001") 
+
+// 2. 属性获取 (Schema 约束 LLM 生成)
+$val1 = $e.get_property("revenue", date="2023")
+$val2 = $e.get_property("revenue", date="2022")
+
+// 3. 逻辑计算 (Solver 内置算子)
+Return Calculate(($val1 - $val2) / $val2)</code></pre>
+
+            <h4>实体链接实现逻辑 (伪代码)：</h4>
+            <pre><code class="language-python">class EntityLinker:
+    def __init__(self, vector_db, graph_db, llm):
+        self.vector_db = vector_db # 存储实体名的向量
+        self.graph_db = graph_db   # 存储图谱结构
+        self.llm = llm
+
+    def link(self, user_query: str, target_types: list = None) -> str:
+        """
+        输入：用户Query
+        输出：图谱中的唯一 Entity ID
+        """
+        # 1. [NER] 提取指称项 (Mention)
+        mention = self.extract_mention(user_query) # e.g., "A公司"
+        
+        # 2. [Recall] 混合召回候选集
+        candidates = []
+        # 2.1 向量召回 (处理别名/简称)
+        candidates.extend(self.vector_db.search(mention, top_k=5))
+        # 2.2 倒排索引召回 (处理精确匹配/字面相似)
+        candidates.extend(self.graph_db.keyword_search(mention, top_k=5))
+        
+        # 3. [Filter] 类型过滤
+        if target_types:
+            candidates = [c for c in candidates if c.type in target_types]
+
+        # 4. [Rank] 实体消歧 (LLM 裁决)
+        if len(candidates) == 1 or candidates[0].score > 0.95:
+            return candidates[0].id
+            
+        return self.llm_disambiguate(user_query, candidates)</code></pre>
+
+            <h3 id="reasoning">4.2 推理与检索 (Reasoning & Retrieval)</h3>
+            <p>执行逻辑计划，结合图谱遍历与向量检索。</p>
+            <ol>
+                <li><strong>锚点定位 (Anchor Retrieval)：</strong>
                     <ul>
-                        <li>输入：用户 Query（例如：“Weknora 和 RAGFlow 有什么区别？”）。</li>
-                        <li>处理：利用 LLM 提取关键实体（如 "Weknora", "RAGFlow"）作为图谱检索的“入口节点”。</li>
+                        <li>如果实体明确，直接在图谱中定位。</li>
+                        <li>如果实体模糊，先通过向量检索找到 Top-K Chunks，提取其中的实体作为图谱推理的“锚点”。</li>
                     </ul>
                 </li>
-                <li><strong>图谱检索与扩展 (Graph Traversal)：</strong>
+                <li><strong>多跳推理与计算：</strong>
                     <ul>
-                        <li>定位：在 Neo4j 中匹配入口节点。</li>
-                        <li>扩展 (1-N Hop)：查询邻居节点。Cypher 示例：<code>MATCH (n)-[r]-(m) WHERE n.name IN [...] RETURN n, r, m</code></li>
-                        <li>路径发现：查找实体间的最短路径。</li>
+                        <li>执行图谱遍历（Traversal）获取多跳关系。</li>
+                        <li>执行属性过滤（Filtering）和数值计算（Calculation）。</li>
                     </ul>
                 </li>
-                <li><strong>上下文召回 (Context Retrieval)：</strong>
-                    <ul>
-                        <li>获取检索到的节点和边中存储的 <code>chunk_id</code>。</li>
-                        <li>从文本数据库召回原始文本切片。</li>
-                        <li><strong>优势：</strong> 能召回“字面上不相似但逻辑上强相关”的内容。</li>
-                    </ul>
-                </li>
-                <li><strong>答案生成 (Answer Generation)：</strong>
-                    <ul>
-                        <li>将图谱结构信息（摘要）和原始文本切片（详情）拼接到 System Prompt。</li>
-                        <li>LLM 生成最终答案并标注来源。</li>
-                    </ul>
-                </li>
+                <li><strong>上下文召回：</strong> 根据推理路径上的节点，通过互索引召回对应的原始文本 Chunk。</li>
             </ol>
         </section>
 
         <section id="analysis">
-            <h2>5. 方案优缺点分析</h2>
-            <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 300px;">
-                    <h3>✅ 优点</h3>
-                    <ul>
-                        <li><strong>结构化认知：</strong> 显性展示实体间的逻辑关系。</li>
-                        <li><strong>多跳推理：</strong> 解决跨文档片段的复杂推理问题（A->B->C）。</li>
-                        <li><strong>全局视角：</strong> 通过实体归一化，聚合分散信息形成完整画像。</li>
-                    </ul>
-                </div>
-                <div style="flex: 1; min-width: 300px;">
-                    <h3>⚠️ 挑战</h3>
-                    <ul>
-                        <li><strong>构建成本高：</strong> LLM 抽取消耗大量 Token，速度较慢。</li>
-                        <li><strong>归一化难度：</strong> 实体对齐是业界难题，需精细调节阈值。</li>
-                        <li><strong>Schema 设计：</strong> 需预定义合理的 Ontology，防止图谱过稀或过密。</li>
-                    </ul>
-                </div>
+            <h2>5. 方案分析与差距对比</h2>
+            
+            <h3>5.1 核心优势 (KAG 增强)</h3>
+            <ul>
+                <li><strong>逻辑可解释：</strong> 通过 Solver 机制，能够处理数值计算和逻辑推理问题，而非仅靠概率生成。</li>
+                <li><strong>知识精度高：</strong> Schema-First 机制保证了知识抽取的规范性，减少了脏数据。</li>
+                <li><strong>混合检索能力：</strong> 互索引机制解决了“有图无文”或“有文无图”的割裂问题。</li>
+                <li><strong>时序感知：</strong> 事件类型的引入使得系统具备了处理时间线问题的能力。</li>
+            </ul>
+
+            <div class="warning-box">
+                <h3>5.2 与原生 KAG/OpenSPG 的差距分析</h3>
+                <p>本方案是一个轻量级的 KAG 实现，但在以下方面与原生 OpenSPG 引擎存在差距：</p>
+                
+                <h4>缺失 SPG 的“可编程性” (The "Programmable" in SPG)</h4>
+                <ul>
+                    <li><strong>KAG/OpenSPG 原生能力：</strong> SPG 不仅仅是定义属性，它允许在 Schema 中<strong>直接定义逻辑规则</strong>。
+                        <br><em>例子：</em> 可以在 Schema 中定义规则：<code>如果 A 持股 B > 50%，则 A 控制 B</code>。当数据写入时，SPG 引擎会自动推理出“控制”关系，而不需要在查询时临时计算。</li>
+                    <li><strong>本方案设计：</strong> 目前的 Schema (3.1) 主要是静态的类型和属性定义（Python Class），缺少了嵌入 Schema 的动态逻辑规则。</li>
+                    <li><strong>影响：</strong> 对于极其复杂的隐式关系推理，本方案需要在查询阶段（Query Time）做更多工作，而 SPG 是在写入阶段（Write Time）或预计算阶段完成，查询效率更高。</li>
+                </ul>
             </div>
         </section>
 
         <footer>
             <p style="text-align: center; margin-top: 4rem; color: #6b7280; font-size: 0.9rem;">
-                Generated for Graph-RAG Implementation Guide
+                Generated for Graph-RAG Implementation Guide (KAG Enhanced)
             </p>
         </footer>
     </main>
