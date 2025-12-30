@@ -249,7 +249,7 @@ graph TD
                 <li><strong>输入：</strong> PDF, Word, Markdown, HTML 等格式文件。</li>
                 <li><strong>处理逻辑：</strong>
                     <ol>
-                        <li><strong>加载 (Loader)：</strong> 使用商汤科技的 autopdf 等工具转换为 Markdown。</li>
+                        <li><strong>加载 (Loader)：</strong> 使用 autopdf 等工具转换为 Markdown。</li>
                         <li><strong>切分 (Splitter)：</strong> 采用混合切分策略（Markdown 结构化切分 + 递归字符切分），并对特殊内容（图片、代码块）进行保护。</li>
                         <li><strong>索引化：</strong> 生成唯一 <code>chunk_id</code>。</li>
                     </ol>
