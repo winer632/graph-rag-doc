@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Graph-RAG 系统技术方案 (KAG Enhanced)</title>
-    <!-- 引入 Mermaid 用于渲染图表 -->
+    <title>Graph-RAG Technical Proposal (KAG Enhanced)</title>
+    <!-- 引入 Mermaid -->
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
         mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
     </script>
-    <!-- 引入代码高亮样式 -->
+    <!-- 引入代码高亮 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>hljs.highlightAll();</script>
@@ -33,6 +33,69 @@
             margin: 0;
             display: flex;
             min-height: 100vh;
+        }
+
+        /* =========================================
+           关键修复：语言切换与 Mermaid 兼容性处理
+           ========================================= */
+        
+        /* 1. 文本内容的切换：使用 display: none 即可 */
+        .lang-en { display: none; }
+        
+        body.en-mode .lang-zh { display: none; }
+        body.en-mode .lang-en { display: block; }
+        body.en-mode span.lang-en { display: inline; }
+
+        /* 2. Mermaid 图表的切换：
+           不能使用 display: none，否则 Mermaid 无法计算 SVG 尺寸导致报错。
+           解决方法：使用 height: 0 + visibility: hidden 将其“折叠”但保留在渲染树中。
+        */
+        
+        /* 默认情况（中文模式）：隐藏英文图表 */
+        body:not(.en-mode) .mermaid-container.lang-en {
+            display: block !important; /* 强制保持 block */
+            height: 0 !important;
+            overflow: hidden !important;
+            visibility: hidden !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            opacity: 0;
+        }
+
+        /* 英文模式：隐藏中文图表 */
+        body.en-mode .mermaid-container.lang-zh {
+            display: block !important; /* 强制保持 block */
+            height: 0 !important;
+            overflow: hidden !important;
+            visibility: hidden !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            opacity: 0;
+        }
+
+        /* ========================================= */
+
+        /* 语言选择器样式 */
+        .lang-selector {
+            position: fixed;
+            top: 1rem;
+            right: 2rem;
+            z-index: 1000;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
+        }
+        
+        .lang-selector select {
+            padding: 0.3rem 0.5rem;
+            font-size: 0.9rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
         }
 
         /* 侧边栏导航 */
@@ -135,6 +198,8 @@
             border-radius: 8px;
             margin: 2rem 0;
             text-align: center;
+            /* 确保容器有基础宽度 */
+            min-height: 50px; 
         }
 
         /* 响应式设计 */
@@ -145,90 +210,199 @@
         @media (max-width: 1023px) {
             main { margin-left: 0; padding: 1.5rem; }
             nav { display: none; }
+            .lang-selector { top: 0.5rem; right: 0.5rem; }
         }
     </style>
 </head>
-<body>
+<!-- 默认开启英文模式 -->
+<body class="en-mode">
+
+    <!-- 语言切换器 -->
+    <div class="lang-selector">
+        <select id="languageSelect" onchange="switchLanguage(this.value)">
+            <option value="zh">🇨🇳 中文 (Chinese)</option>
+            <option value="en" selected>🇺🇸 English</option>
+        </select>
+    </div>
 
     <!-- 侧边栏目录 -->
     <nav>
-        <h3>目录</h3>
+        <h3>
+            <span class="lang-zh">目录</span>
+            <span class="lang-en">Table of Contents</span>
+        </h3>
         <ul>
-            <li><a href="#overview">1. 概述</a></li>
-            <li><a href="#architecture">2. 总体架构图</a></li>
-            <li><a href="#pipeline-data">3. 离线数据处理流程</a></li>
+            <li><a href="#overview">
+                <span class="lang-zh">1. 概述</span>
+                <span class="lang-en">1. Overview</span>
+            </a></li>
+            <li><a href="#architecture">
+                <span class="lang-zh">2. 总体架构图</span>
+                <span class="lang-en">2. Architecture</span>
+            </a></li>
+            <li><a href="#pipeline-data">
+                <span class="lang-zh">3. 离线数据处理流程</span>
+                <span class="lang-en">3. Offline Data Pipeline</span>
+            </a></li>
             <ul>
-                <li><a href="#schema">3.1 Schema 定义 (Schema-First)</a></li>
-                <li><a href="#parsing">3.2 文档解析与切分</a></li>
-                <li><a href="#extraction">3.3 LLM 信息抽取</a></li>
-                <li><a href="#normalization">3.4 实体归一化</a></li>
-                <li><a href="#indexing">3.5 互索引构建 (Mutual Indexing)</a></li>
+                <li><a href="#schema">
+                    <span class="lang-zh">3.1 Schema 定义</span>
+                    <span class="lang-en">3.1 Schema Definition</span>
+                </a></li>
+                <li><a href="#parsing">
+                    <span class="lang-zh">3.2 文档解析与切分</span>
+                    <span class="lang-en">3.2 Parsing & Chunking</span>
+                </a></li>
+                <li><a href="#extraction">
+                    <span class="lang-zh">3.3 LLM 信息抽取</span>
+                    <span class="lang-en">3.3 LLM Extraction</span>
+                </a></li>
+                <li><a href="#normalization">
+                    <span class="lang-zh">3.4 实体归一化</span>
+                    <span class="lang-en">3.4 Normalization</span>
+                </a></li>
+                <li><a href="#indexing">
+                    <span class="lang-zh">3.5 互索引构建</span>
+                    <span class="lang-en">3.5 Mutual Indexing</span>
+                </a></li>
             </ul>
-            <li><a href="#pipeline-query">4. 在线问答处理流程</a></li>
+            <li><a href="#pipeline-query">
+                <span class="lang-zh">4. 在线问答处理流程</span>
+                <span class="lang-en">4. Online Query Pipeline</span>
+            </a></li>
             <ul>
-                <li><a href="#planning">4.1 逻辑规划 (Schema-Guided)</a></li>
-                <li><a href="#reasoning">4.2 推理与检索</a></li>
+                <li><a href="#planning">
+                    <span class="lang-zh">4.1 逻辑规划</span>
+                    <span class="lang-en">4.1 Logic Planning</span>
+                </a></li>
+                <li><a href="#reasoning">
+                    <span class="lang-zh">4.2 推理与检索</span>
+                    <span class="lang-en">4.2 Reasoning & Retrieval</span>
+                </a></li>
             </ul>
-            <li><a href="#analysis">5. 方案分析与差距对比</a></li>
+            <li><a href="#analysis">
+                <span class="lang-zh">5. 方案分析与差距对比</span>
+                <span class="lang-en">5. Analysis & Gap Check</span>
+            </a></li>
         </ul>
     </nav>
 
     <!-- 主内容 -->
     <main>
         <header>
-            <h1>Graph-RAG 系统技术方案 (KAG Enhanced)</h1>
-            <p><strong>版本：</strong> v2.1 | <strong>状态：</strong> Draft | <strong>作者：</strong> 王欣鑫</p>
+            <h1>
+                <span class="lang-zh">Graph-RAG 系统技术方案 (KAG Enhanced)</span>
+                <span class="lang-en">Graph-RAG Technical Proposal (KAG Enhanced)</span>
+            </h1>
+            <p>
+                <span class="lang-zh"><strong>版本：</strong> v2.1 | <strong>状态：</strong> Draft | <strong>作者：</strong> 王欣鑫</span>
+                <span class="lang-en"><strong>Version:</strong> v2.1 | <strong>Status:</strong> Draft | <strong>Author:</strong> Xinxin Wang</span>
+            </p>
         </header>
 
         <section id="overview">
-            <h2>1. 概述</h2>
-            <p>本方案旨在构建一个结合知识图谱（Knowledge Graph, KG）与大语言模型（LLM）的工业级 RAG 系统。参考 <strong>OpenSPG/KAG</strong> 的设计理念，通过引入 <strong>Schema 约束</strong>、<strong>互索引机制</strong> 和 <strong>逻辑求解器</strong>，解决传统 RAG 在处理复杂逻辑、多跳推理及专业领域知识精度上的不足。</p>
+            <h2>
+                <span class="lang-zh">1. 概述</span>
+                <span class="lang-en">1. Overview</span>
+            </h2>
+            <p class="lang-zh">本方案旨在构建一个结合知识图谱（Knowledge Graph, KG）与大语言模型（LLM）的工业级 RAG 系统。参考 <strong>OpenSPG/KAG</strong> 的设计理念，通过引入 <strong>Schema 约束</strong>、<strong>互索引机制</strong> 和 <strong>逻辑求解器</strong>，解决传统 RAG 在处理复杂逻辑、多跳推理及专业领域知识精度上的不足。</p>
+            <p class="lang-en">This proposal aims to build an industrial-grade RAG system combining Knowledge Graph (KG) and Large Language Models (LLM). Referencing the design philosophy of <strong>OpenSPG/KAG</strong>, it introduces <strong>Schema Constraints</strong>, <strong>Mutual Indexing</strong>, and a <strong>Logic Solver</strong> to address the limitations of traditional RAG in handling complex logic, multi-hop reasoning, and domain knowledge precision.</p>
+            
             <blockquote>
-                <strong>核心理念：</strong><br>
-                • <strong>Schema-First：</strong> 预定义领域本体（实体/概念/事件），确保知识抽取的规范性。<br>
-                • <strong>互索引 (Mutual Indexing)：</strong> 建立文本切片与图谱节点的双向映射，实现混合检索。<br>
-                • <strong>逻辑求解：</strong> 将自然语言转化为逻辑计划，支持计算与推理，而非仅靠语义匹配。
+                <strong class="lang-zh">核心理念：</strong>
+                <strong class="lang-en">Core Concepts:</strong><br>
+                <span class="lang-zh">• <strong>Schema-First：</strong> 预定义领域本体（实体/概念/事件），确保知识抽取的规范性。</span>
+                <span class="lang-en">• <strong>Schema-First:</strong> Pre-define domain ontology (Entities/Concepts/Events) to ensure standardized knowledge extraction.</span><br>
+                <span class="lang-zh">• <strong>互索引 (Mutual Indexing)：</strong> 建立文本切片与图谱节点的双向映射，实现混合检索。</span>
+                <span class="lang-en">• <strong>Mutual Indexing:</strong> Establish bidirectional mapping between text chunks and graph nodes to enable hybrid retrieval.</span><br>
+                <span class="lang-zh">• <strong>逻辑求解：</strong> 将自然语言转化为逻辑计划，支持计算与推理，而非仅靠语义匹配。</span>
+                <span class="lang-en">• <strong>Logic Solver:</strong> Convert natural language into logical plans, supporting calculation and reasoning rather than just semantic matching.</span>
             </blockquote>
         </section>
 
         <section id="architecture">
-            <h2>2. 总体架构图</h2>
-            <div class="mermaid-container">
+            <h2>
+                <span class="lang-zh">2. 总体架构图</span>
+                <span class="lang-en">2. Architecture Diagram</span>
+            </h2>
+            <!-- 
+                修复说明：
+                1. 给所有中文标签加上双引号 ""，防止 Mermaid 解析器因特殊字符报错。
+                2. CSS 已修改为 height:0 隐藏，确保 Mermaid 能在后台正确渲染。
+            -->
+            <div class="mermaid-container lang-zh">
                 <div class="mermaid">
 graph TD
     subgraph "离线数据处理流程 (Data Pipeline)"
-        Init[Schema/Ontology 定义] --> A[原始文档 PDF/Word/MD]
-        A --> B(文档解析 Parsing)
-        B --> C(文本切分 Chunking)
-        C --> D{LLM 信息抽取}
-        D -->|基于 Schema| E[实体/概念/事件]
-        D -->|提取关系| F[关系 Relation]
-        E & F --> G(实体归一化 Normalization)
-        G --> H(图谱构建 Graph Construction)
-        H --> I[(图数据库 Neo4j)]
-        C --> J[(向量/文本数据库)]
-        I <-->|互索引 Mutual Indexing| J
+        Init["Schema/Ontology 定义"] --> A["原始文档 PDF/Word/MD"]
+        A --> B("文档解析 Parsing")
+        B --> C("文本切分 Chunking")
+        C --> D{"LLM 信息抽取"}
+        D -->|基于 Schema| E["实体/概念/事件"]
+        D -->|提取关系| F["关系 Relation"]
+        E & F --> G("实体归一化 Normalization")
+        G --> H("图谱构建 Graph Construction")
+        H --> I[("图数据库 Neo4j")]
+        C --> J[("向量/文本数据库")]
+        I <-->|"互索引 Mutual Indexing"| J
     end
 
     subgraph "在线问答处理流程 (Query Pipeline)"
-        U[用户提问] --> V(逻辑规划 Logic Planning)
-        V --> W(推理与检索 Reasoning & Retrieval)
-        W --> X(获取关联 Chunk 内容)
-        X --> Y(上下文重组 Context Merge)
-        Y --> Z(LLM 答案生成)
-        Z --> Ans[最终回答]
+        U["用户提问"] --> V("逻辑规划 Logic Planning")
+        V --> W("推理与检索 Reasoning & Retrieval")
+        W --> X("获取关联 Chunk 内容")
+        X --> Y("上下文重组 Context Merge")
+        Y --> Z("LLM 答案生成")
+        Z --> Ans["最终回答"]
+    end
+                </div>
+            </div>
+            <div class="mermaid-container lang-en">
+                <div class="mermaid">
+graph TD
+    subgraph "Offline Data Pipeline"
+        Init[Schema/Ontology Def] --> A[Raw Docs PDF/Word/MD]
+        A --> B(Doc Parsing)
+        B --> C(Text Chunking)
+        C --> D{LLM Extraction}
+        D -->|Schema Based| E[Entity/Concept/Event]
+        D -->|Extract Relations| F[Relation]
+        E & F --> G(Normalization)
+        G --> H(Graph Construction)
+        H --> I[(GraphDB Neo4j)]
+        C --> J[(Vector/Text DB)]
+        I <-->|Mutual Indexing| J
+    end
+
+    subgraph "Online Query Pipeline"
+        U[User Query] --> V(Logic Planning)
+        V --> W(Reasoning & Retrieval)
+        W --> X(Fetch Related Chunks)
+        X --> Y(Context Merge)
+        Y --> Z(LLM Generation)
+        Z --> Ans[Final Answer]
     end
                 </div>
             </div>
         </section>
 
         <section id="pipeline-data">
-            <h2>3. 离线数据处理流程</h2>
-            <p>此流程负责将非结构化数据转化为结构化知识并入库。与传统 Graph-RAG 不同，我们引入了 <strong>Schema-First</strong> 和 <strong>DIKW (Data-Information-Knowledge-Wisdom)</strong> 建模思想。</p>
+            <h2>
+                <span class="lang-zh">3. 离线数据处理流程</span>
+                <span class="lang-en">3. Offline Data Pipeline</span>
+            </h2>
+            <p class="lang-zh">此流程负责将非结构化数据转化为结构化知识并入库。与传统 Graph-RAG 不同，我们引入了 <strong>Schema-First</strong> 和 <strong>DIKW (Data-Information-Knowledge-Wisdom)</strong> 建模思想。</p>
+            <p class="lang-en">This pipeline is responsible for converting unstructured data into structured knowledge. Unlike traditional Graph-RAG, we introduce <strong>Schema-First</strong> and <strong>DIKW (Data-Information-Knowledge-Wisdom)</strong> modeling concepts.</p>
 
-            <h3 id="schema">3.1 Schema 定义 (Schema-First)</h3>
-            <p>在解析文档前，必须定义领域的 Schema。这不仅是类型列表，更是对属性和逻辑的约束。</p>
-            <pre><code class="language-python">class SchemaConfig:
+            <h3 id="schema">
+                <span class="lang-zh">3.1 Schema 定义 (Schema-First)</span>
+                <span class="lang-en">3.1 Schema Definition (Schema-First)</span>
+            </h3>
+            <p class="lang-zh">在解析文档前，必须定义领域的 Schema。这不仅是类型列表，更是对属性和逻辑的约束。</p>
+            <p class="lang-en">Before parsing documents, the domain Schema must be defined. This is not just a list of types, but a constraint on properties and logic.</p>
+            
+            <!-- 中文代码块 -->
+            <pre class="lang-zh"><code class="language-python">class SchemaConfig:
     # 1. 实体 (Entity): 具体存在的对象
     ENTITIES = ['Person', 'Company', 'Product']
     
@@ -244,22 +418,60 @@ graph TD
         'Event': ['event_date', 'location', 'participants']
     }</code></pre>
 
-            <h3 id="parsing">3.2 文档解析与切分 (Parsing & Chunking)</h3>
+            <!-- 英文代码块 -->
+            <pre class="lang-en"><code class="language-python">class SchemaConfig:
+    # 1. Entity: Concrete existing objects
+    ENTITIES = ['Person', 'Company', 'Product']
+    
+    # 2. Concept: Abstract classifications or domain terms
+    CONCEPTS = ['Industry', 'Technology', 'Regulation']
+    
+    # 3. Event: Dynamic actions, including time/location
+    EVENTS = ['Acquisition', 'Release', 'Lawsuit']
+    
+    # 4. Properties: Define mandatory fields for each type
+    PROPERTIES = {
+        'Company': ['revenue', 'employee_count', 'founded_date'],
+        'Event': ['event_date', 'location', 'participants']
+    }</code></pre>
+
+            <h3 id="parsing">
+                <span class="lang-zh">3.2 文档解析与切分</span>
+                <span class="lang-en">3.2 Document Parsing & Chunking</span>
+            </h3>
             <ul>
-                <li><strong>输入：</strong> PDF, Word, Markdown, HTML 等格式文件。</li>
-                <li><strong>处理逻辑：</strong>
+                <li>
+                    <span class="lang-zh"><strong>输入：</strong> PDF, Word, Markdown, HTML 等格式文件。</span>
+                    <span class="lang-en"><strong>Input:</strong> PDF, Word, Markdown, HTML, etc.</span>
+                </li>
+                <li>
+                    <span class="lang-zh"><strong>处理逻辑：</strong></span>
+                    <span class="lang-en"><strong>Processing Logic:</strong></span>
                     <ol>
-                        <li><strong>加载 (Loader)：</strong> 使用 autopdf 等工具转换为 Markdown。</li>
-                        <li><strong>切分 (Splitter)：</strong> 采用混合切分策略（Markdown 结构化切分 + 递归字符切分），并对特殊内容（图片、表格、代码块）进行保护。</li>
-                        <li><strong>索引化：</strong> 生成唯一 <code>chunk_id</code>。</li>
+                        <li>
+                            <span class="lang-zh"><strong>加载 (Loader)：</strong> 使用 autopdf 等工具转换为 Markdown。</span>
+                            <span class="lang-en"><strong>Loader:</strong> Convert to Markdown using tools like autopdf.</span>
+                        </li>
+                        <li>
+                            <span class="lang-zh"><strong>切分 (Splitter)：</strong> 采用混合切分策略（Markdown 结构化切分 + 递归字符切分），并对特殊内容（图片、表格、代码块）进行保护。</span>
+                            <span class="lang-en"><strong>Splitter:</strong> Use hybrid splitting strategy (Markdown structural splitting + recursive character splitting), protecting special content (images, tables, code blocks).</span>
+                        </li>
+                        <li>
+                            <span class="lang-zh"><strong>索引化：</strong> 生成唯一 <code>chunk_id</code>。</span>
+                            <span class="lang-en"><strong>Indexing:</strong> Generate unique <code>chunk_id</code>.</span>
+                        </li>
                     </ol>
                 </li>
             </ul>
 
-            <h3 id="extraction">3.3 LLM 信息抽取 (LLM-based Extraction)</h3>
-            <p>利用 LLM 进行抽取时，将 Schema 定义注入 Prompt，强制 LLM 输出符合规范的结构化数据，并显式区分实体、概念和事件。</p>
+            <h3 id="extraction">
+                <span class="lang-zh">3.3 LLM 信息抽取</span>
+                <span class="lang-en">3.3 LLM-based Extraction</span>
+            </h3>
+            <p class="lang-zh">利用 LLM 进行抽取时，将 Schema 定义注入 Prompt，强制 LLM 输出符合规范的结构化数据，并显式区分实体、概念和事件。</p>
+            <p class="lang-en">When using LLM for extraction, inject the Schema definition into the Prompt to force the LLM to output standardized structured data, explicitly distinguishing between entities, concepts, and events.</p>
             
-            <pre><code class="language-python">def extract_knowledge_from_chunk(text_chunk, schema_config):
+            <pre class="lang-zh"><code class="language-python">def extract_knowledge_from_chunk(text_chunk, schema_config):
     """
     基于 Schema 的知识抽取
     """
@@ -281,9 +493,36 @@ graph TD
     # 调用 LLM 执行抽取
     return call_llm(system_prompt, text_chunk)</code></pre>
 
-            <h3 id="normalization">3.4 实体归一化 (Normalization)</h3>
-            <p>采用多级漏斗机制：<strong>字面匹配 -> 语义相似度 -> LLM 深度裁决</strong>，解决多源数据融合问题。</p>
-            <pre><code class="language-python">def is_same_entity(new_node, existing_node):
+            <pre class="lang-en"><code class="language-python">def extract_knowledge_from_chunk(text_chunk, schema_config):
+    """
+    Schema-based Knowledge Extraction
+    """
+    system_prompt = f"""
+    You are a domain knowledge graph expert. Extract knowledge from the text based on the following Schema.
+    
+    [Schema Definition]
+    - Entity Types: {schema_config.ENTITIES}
+    - Concept Types: {schema_config.CONCEPTS}
+    - Event Types: {schema_config.EVENTS} (Note: extract event_date)
+    - Property Constraints: {schema_config.PROPERTIES}
+    
+    [Output Requirements]
+    1. Strictly adhere to type definitions; do not invent types outside the Schema.
+    2. For events, time elements must be extracted to build temporal relations.
+    3. Output format must be JSON.
+    """
+    
+    # Call LLM for extraction
+    return call_llm(system_prompt, text_chunk)</code></pre>
+
+            <h3 id="normalization">
+                <span class="lang-zh">3.4 实体归一化 (Normalization)</span>
+                <span class="lang-en">3.4 Entity Normalization</span>
+            </h3>
+            <p class="lang-zh">采用多级漏斗机制：<strong>字面匹配 -> 语义相似度 -> LLM 深度裁决</strong>，解决多源数据融合问题。</p>
+            <p class="lang-en">Adopts a multi-stage funnel mechanism: <strong>Literal Match -> Semantic Similarity -> LLM Deep Judgment</strong>, solving multi-source data fusion issues.</p>
+            
+            <pre class="lang-zh"><code class="language-python">def is_same_entity(new_node, existing_node):
     # 1. 极速通道：字面完全一致
     if new_node.name == existing_node.name: return True
     
@@ -296,10 +535,27 @@ graph TD
     
     return llm_judge(new_node, existing_node)</code></pre>
 
-            <h3 id="indexing">3.5 互索引构建 (Mutual Indexing)</h3>
-            <p>这是 KAG 架构的核心。我们需要建立向量索引与图谱索引的双向映射，以支持混合检索。为了保证数据一致性，采用<strong>“处理完再入库”</strong>的流水线模式。</p>
+            <pre class="lang-en"><code class="language-python">def is_same_entity(new_node, existing_node):
+    # 1. Fast Track: Exact literal match
+    if new_node.name == existing_node.name: return True
+    
+    # 2. Vector Similarity Check
+    sim = cosine_similarity(new_node.embedding, existing_node.embedding)
+    if sim < 0.6: return False # Fast reject
+    
+    # 3. LLM Deep Judgment (Handle aliases, abbreviations, versions, etc.)
+    if sim > 0.92: return True # Fast pass
+    
+    return llm_judge(new_node, existing_node)</code></pre>
+
+            <h3 id="indexing">
+                <span class="lang-zh">3.5 互索引构建 (Mutual Indexing)</span>
+                <span class="lang-en">3.5 Mutual Indexing Construction</span>
+            </h3>
+            <p class="lang-zh">这是 KAG 架构的核心。我们需要建立向量索引与图谱索引的双向映射，以支持混合检索。为了保证数据一致性，采用<strong>“处理完再入库”</strong>的流水线模式。</p>
+            <p class="lang-en">This is the core of the KAG architecture. We need to establish a bidirectional mapping between vector indices and graph indices to support hybrid retrieval. To ensure data consistency, a <strong>"Process then Commit"</strong> pipeline pattern is adopted.</p>
             
-            <div class="mermaid-container">
+            <div class="mermaid-container lang-zh">
                 <div class="mermaid">
 sequenceDiagram
     participant Doc as 文档处理
@@ -323,28 +579,81 @@ sequenceDiagram
     end
                 </div>
             </div>
+            <div class="mermaid-container lang-en">
+                <div class="mermaid">
+sequenceDiagram
+    participant Doc as Doc Processing
+    participant LLM as LLM Extraction
+    participant Norm as Normalization
+    participant GraphDB as GraphDB(Neo4j)
+    participant VectorDB as VectorDB
+    
+    Doc->>Doc: 1. Chunking, generate chunk_id (UUID)
+    Doc->>LLM: 2. Input Chunk Text
+    LLM-->>Doc: Return Mentions ("Company A")
+    
+    Doc->>Norm: 3. Request Normalization ("Company A")
+    Norm->>GraphDB: Query/Create Entity ID
+    GraphDB-->>Norm: Return entity_id (Company:1001)
+    Norm-->>Doc: Return ID List [Company:1001]
+    
+    par Parallel Write
+        Doc->>GraphDB: 4. Write Graph: Node Company:1001 links source_chunk_id
+        Doc->>VectorDB: 5. Write Vector: Chunk Vector + Metadata {related_ids: [Company:1001]}
+    end
+                </div>
+            </div>
         </section>
 
         <section id="pipeline-query">
-            <h2>4. 在线问答处理流程</h2>
-            <p>从传统的“关键词匹配”升级为“逻辑求解器 (Solver)”。</p>
+            <h2>
+                <span class="lang-zh">4. 在线问答处理流程</span>
+                <span class="lang-en">4. Online Query Pipeline</span>
+            </h2>
+            <p class="lang-zh">从传统的“关键词匹配”升级为“逻辑求解器 (Solver)”。</p>
+            <p class="lang-en">Upgrading from traditional "Keyword Matching" to a "Logic Solver".</p>
 
-            <h3 id="planning">4.1 逻辑规划 (Schema-Guided Logic Planning)</h3>
-            <p>利用 <strong>Schema 约束</strong> 和 <strong>KG-Solver</strong>，将自然语言转化为可执行的 <strong>KGDSL (领域特定语言)</strong>，并通过校验机制保证稳定性。</p>
+            <h3 id="planning">
+                <span class="lang-zh">4.1 逻辑规划 (Schema-Guided Logic Planning)</span>
+                <span class="lang-en">4.1 Schema-Guided Logic Planning</span>
+            </h3>
+            <p class="lang-zh">利用 <strong>Schema 约束</strong> 和 <strong>KG-Solver</strong>，将自然语言转化为可执行的 <strong>KGDSL (领域特定语言)</strong>，并通过校验机制保证稳定性。</p>
+            <p class="lang-en">Using <strong>Schema Constraints</strong> and <strong>KG-Solver</strong>, natural language is converted into executable <strong>KGDSL (Domain Specific Language)</strong>, with validation mechanisms ensuring stability.</p>
             
-            <h4>处理流程：</h4>
+            <h4>
+                <span class="lang-zh">处理流程：</span>
+                <span class="lang-en">Process Flow:</span>
+            </h4>
             <ol>
-                <li><strong>实体链接 (Grounding)：</strong> 首先将问题中的“A公司”映射为图谱中的唯一 ID <code>Company:1001</code>，而非仅靠文本生成。</li>
-                <li><strong>Schema 约束生成：</strong> 将领域 Schema（如 Company 有 revenue 属性）注入 Prompt，限制 LLM 只能生成合法的属性名。</li>
-                <li><strong>DSL 生成：</strong> 生成标准化的查询语句。</li>
+                <li>
+                    <span class="lang-zh"><strong>实体链接 (Grounding)：</strong> 首先将问题中的“A公司”映射为图谱中的唯一 ID <code>Company:1001</code>，而非仅靠文本生成。</span>
+                    <span class="lang-en"><strong>Entity Grounding:</strong> First map "Company A" in the question to the unique ID <code>Company:1001</code> in the graph, rather than relying solely on text generation.</span>
+                </li>
+                <li>
+                    <span class="lang-zh"><strong>Schema 约束生成：</strong> 将领域 Schema（如 Company 有 revenue 属性）注入 Prompt，限制 LLM 只能生成合法的属性名。</span>
+                    <span class="lang-en"><strong>Schema Constraint Generation:</strong> Inject domain Schema (e.g., Company has 'revenue' property) into the Prompt, restricting LLM to generate only valid property names.</span>
+                </li>
+                <li>
+                    <span class="lang-zh"><strong>DSL 生成：</strong> 生成标准化的查询语句。</span>
+                    <span class="lang-en"><strong>DSL Generation:</strong> Generate standardized query statements.</span>
+                </li>
             </ol>
 
-            <h4>示例：</h4>
+            <h4>
+                <span class="lang-zh">示例：</span>
+                <span class="lang-en">Example:</span>
+            </h4>
             <ul>
-                <li><strong>输入：</strong> "A公司2023年的营收相比2022年增长了多少？"</li>
-                <li><strong>输出计划 (KGDSL 伪代码)：</strong></li>
+                <li>
+                    <span class="lang-zh"><strong>输入：</strong> "A公司2023年的营收相比2022年增长了多少？"</span>
+                    <span class="lang-en"><strong>Input:</strong> "How much did Company A's revenue grow in 2023 compared to 2022?"</span>
+                </li>
+                <li>
+                    <span class="lang-zh"><strong>输出计划 (KGDSL 伪代码)：</strong></span>
+                    <span class="lang-en"><strong>Output Plan (KGDSL Pseudo-code):</strong></span>
+                </li>
             </ul>
-            <pre><code class="language-text">// 1. 实体锚定 (由 Entity Linking 模块完成，非 LLM 生成)
+            <pre class="lang-zh"><code class="language-text">// 1. 实体锚定 (由 Entity Linking 模块完成，非 LLM 生成)
 $e = Entity(type="Company", id="1001") 
 
 // 2. 属性获取 (Schema 约束 LLM 生成)
@@ -353,9 +662,21 @@ $val2 = $e.get_property("revenue", date="2022")
 
 // 3. 逻辑计算 (Solver 内置算子)
 Return Calculate(($val1 - $val2) / $val2)</code></pre>
+            <pre class="lang-en"><code class="language-text">// 1. Entity Anchoring (Done by Entity Linking module, not LLM generation)
+$e = Entity(type="Company", id="1001") 
 
-            <h4>实体链接实现逻辑 (伪代码)：</h4>
-            <pre><code class="language-python">class EntityLinker:
+// 2. Property Retrieval (Schema constrained LLM generation)
+$val1 = $e.get_property("revenue", date="2023")
+$val2 = $e.get_property("revenue", date="2022")
+
+// 3. Logic Calculation (Solver built-in operators)
+Return Calculate(($val1 - $val2) / $val2)</code></pre>
+
+            <h4>
+                <span class="lang-zh">实体链接实现逻辑 (伪代码)：</span>
+                <span class="lang-en">Entity Linking Logic (Pseudo-code):</span>
+            </h4>
+            <pre class="lang-zh"><code class="language-python">class EntityLinker:
     def __init__(self, vector_db, graph_db, llm):
         self.vector_db = vector_db # 存储实体名的向量
         self.graph_db = graph_db   # 存储图谱结构
@@ -385,47 +706,136 @@ Return Calculate(($val1 - $val2) / $val2)</code></pre>
             return candidates[0].id
             
         return self.llm_disambiguate(user_query, candidates)</code></pre>
+            <pre class="lang-en"><code class="language-python">class EntityLinker:
+    def __init__(self, vector_db, graph_db, llm):
+        self.vector_db = vector_db # Stores entity name vectors
+        self.graph_db = graph_db   # Stores graph structure
+        self.llm = llm
 
-            <h3 id="reasoning">4.2 推理与检索 (Reasoning & Retrieval)</h3>
-            <p>执行逻辑计划，结合图谱遍历与向量检索。</p>
+    def link(self, user_query: str, target_types: list = None) -> str:
+        """
+        Input: User Query
+        Output: Unique Entity ID in Graph
+        """
+        # 1. [NER] Extract Mention
+        mention = self.extract_mention(user_query) # e.g., "Company A"
+        
+        # 2. [Recall] Hybrid Candidate Recall
+        candidates = []
+        # 2.1 Vector Recall (Handle aliases/abbreviations)
+        candidates.extend(self.vector_db.search(mention, top_k=5))
+        # 2.2 Inverted Index Recall (Handle exact match/literal similarity)
+        candidates.extend(self.graph_db.keyword_search(mention, top_k=5))
+        
+        # 3. [Filter] Type Filtering
+        if target_types:
+            candidates = [c for c in candidates if c.type in target_types]
+
+        # 4. [Rank] Entity Disambiguation (LLM Judgment)
+        if len(candidates) == 1 or candidates[0].score > 0.95:
+            return candidates[0].id
+            
+        return self.llm_disambiguate(user_query, candidates)</code></pre>
+
+            <h3 id="reasoning">
+                <span class="lang-zh">4.2 推理与检索 (Reasoning & Retrieval)</span>
+                <span class="lang-en">4.2 Reasoning & Retrieval</span>
+            </h3>
+            <p class="lang-zh">执行逻辑计划，结合图谱遍历与向量检索。</p>
+            <p class="lang-en">Execute the logic plan, combining graph traversal and vector retrieval.</p>
             <ol>
-                <li><strong>锚点定位 (Anchor Retrieval)：</strong>
+                <li>
+                    <span class="lang-zh"><strong>锚点定位 (Anchor Retrieval)：</strong></span>
+                    <span class="lang-en"><strong>Anchor Retrieval:</strong></span>
                     <ul>
-                        <li>如果实体明确，直接在图谱中定位。</li>
-                        <li>如果实体模糊，先通过向量检索找到 Top-K Chunks，提取其中的实体作为图谱推理的“锚点”。</li>
+                        <li>
+                            <span class="lang-zh">如果实体明确，直接在图谱中定位。</span>
+                            <span class="lang-en">If the entity is explicit, locate it directly in the graph.</span>
+                        </li>
+                        <li>
+                            <span class="lang-zh">如果实体模糊，先通过向量检索找到 Top-K Chunks，提取其中的实体作为图谱推理的“锚点”。</span>
+                            <span class="lang-en">If the entity is ambiguous, first find Top-K Chunks via vector search, and extract entities within them as "anchors" for graph reasoning.</span>
+                        </li>
                     </ul>
                 </li>
-                <li><strong>多跳推理与计算：</strong>
+                <li>
+                    <span class="lang-zh"><strong>多跳推理与计算：</strong></span>
+                    <span class="lang-en"><strong>Multi-hop Reasoning & Calculation:</strong></span>
                     <ul>
-                        <li>执行图谱遍历（Traversal）获取多跳关系。</li>
-                        <li>执行属性过滤（Filtering）和数值计算（Calculation）。</li>
+                        <li>
+                            <span class="lang-zh">执行图谱遍历（Traversal）获取多跳关系。</span>
+                            <span class="lang-en">Execute Graph Traversal to get multi-hop relations.</span>
+                        </li>
+                        <li>
+                            <span class="lang-zh">执行属性过滤（Filtering）和数值计算（Calculation）。</span>
+                            <span class="lang-en">Execute Property Filtering and Calculation.</span>
+                        </li>
                     </ul>
                 </li>
-                <li><strong>上下文召回：</strong> 根据推理路径上的节点，通过互索引召回对应的原始文本 Chunk。</li>
+                <li>
+                    <span class="lang-zh"><strong>上下文召回：</strong> 根据推理路径上的节点，通过互索引召回对应的原始文本 Chunk。</span>
+                    <span class="lang-en"><strong>Context Recall:</strong> Retrieve corresponding original text Chunks via mutual indexing based on nodes in the reasoning path.</span>
+                </li>
             </ol>
         </section>
 
         <section id="analysis">
-            <h2>5. 方案分析与差距对比</h2>
+            <h2>
+                <span class="lang-zh">5. 方案分析与差距对比</span>
+                <span class="lang-en">5. Analysis & Gap Comparison</span>
+            </h2>
             
-            <h3>5.1 核心优势 (KAG 增强)</h3>
+            <h3>
+                <span class="lang-zh">5.1 核心优势 (KAG 增强)</span>
+                <span class="lang-en">5.1 Core Advantages (KAG Enhanced)</span>
+            </h3>
             <ul>
-                <li><strong>逻辑可解释：</strong> 通过 Solver 机制，能够处理数值计算和逻辑推理问题，而非仅靠概率生成。</li>
-                <li><strong>知识精度高：</strong> Schema-First 机制保证了知识抽取的规范性，减少了脏数据。</li>
-                <li><strong>混合检索能力：</strong> 互索引机制解决了“有图无文”或“有文无图”的割裂问题。</li>
-                <li><strong>时序感知：</strong> 事件类型的引入使得系统具备了处理时间线问题的能力。</li>
+                <li>
+                    <span class="lang-zh"><strong>逻辑可解释：</strong> 通过 Solver 机制，能够处理数值计算和逻辑推理问题，而非仅靠概率生成。</span>
+                    <span class="lang-en"><strong>Logical Interpretability:</strong> Via the Solver mechanism, it handles numerical calculation and logical reasoning, not just probabilistic generation.</span>
+                </li>
+                <li>
+                    <span class="lang-zh"><strong>知识精度高：</strong> Schema-First 机制保证了知识抽取的规范性，减少了脏数据。</span>
+                    <span class="lang-en"><strong>High Knowledge Precision:</strong> Schema-First mechanism ensures standardized knowledge extraction, reducing dirty data.</span>
+                </li>
+                <li>
+                    <span class="lang-zh"><strong>混合检索能力：</strong> 互索引机制解决了“有图无文”或“有文无图”的割裂问题。</span>
+                    <span class="lang-en"><strong>Hybrid Retrieval:</strong> Mutual indexing solves the fragmentation issue of "Graph without Text" or "Text without Graph".</span>
+                </li>
+                <li>
+                    <span class="lang-zh"><strong>时序感知：</strong> 事件类型的引入使得系统具备了处理时间线问题的能力。</span>
+                    <span class="lang-en"><strong>Temporal Awareness:</strong> The introduction of Event types enables the system to handle timeline issues.</span>
+                </li>
             </ul>
 
             <div class="warning-box">
-                <h3>5.2 与原生 KAG/OpenSPG 的差距分析</h3>
-                <p>本方案是一个轻量级的 KAG 实现，但在以下方面与原生 OpenSPG 引擎存在差距：</p>
+                <h3>
+                    <span class="lang-zh">5.2 与原生 KAG/OpenSPG 的差距分析</span>
+                    <span class="lang-en">5.2 Gap Analysis with Native KAG/OpenSPG</span>
+                </h3>
+                <p class="lang-zh">本方案是一个轻量级的 KAG 实现，但在以下方面与原生 OpenSPG 引擎存在差距：</p>
+                <p class="lang-en">This proposal is a lightweight KAG implementation, but gaps exist compared to the native OpenSPG engine in the following areas:</p>
                 
-                <h4>缺失 SPG 的“可编程性” (The "Programmable" in SPG)</h4>
+                <h4>
+                    <span class="lang-zh">缺失 SPG 的“可编程性” (The "Programmable" in SPG)</span>
+                    <span class="lang-en">Missing "Programmability" of SPG</span>
+                </h4>
                 <ul>
-                    <li><strong>KAG/OpenSPG 原生能力：</strong> SPG 不仅仅是定义属性，它允许在 Schema 中<strong>直接定义逻辑规则</strong>。
-                        <br><em>例子：</em> 可以在 Schema 中定义规则：<code>如果 A 持股 B > 50%，则 A 控制 B</code>。当数据写入时，SPG 引擎会自动推理出“控制”关系，而不需要在查询时临时计算。</li>
-                    <li><strong>本方案设计：</strong> 目前的 Schema (3.1) 主要是静态的类型和属性定义（Python Class），缺少了嵌入 Schema 的动态逻辑规则。</li>
-                    <li><strong>影响：</strong> 对于极其复杂的隐式关系推理，本方案需要在查询阶段（Query Time）做更多工作，而 SPG 是在写入阶段（Write Time）或预计算阶段完成，查询效率更高。</li>
+                    <li>
+                        <span class="lang-zh"><strong>KAG/OpenSPG 原生能力：</strong> SPG 不仅仅是定义属性，它允许在 Schema 中<strong>直接定义逻辑规则</strong>。</span>
+                        <span class="lang-en"><strong>Native KAG/OpenSPG Capability:</strong> SPG is not just about defining properties; it allows defining <strong>logic rules directly in the Schema</strong>.</span>
+                        <br><em class="lang-zh">例子：</em><em class="lang-en">Example:</em> 
+                        <span class="lang-zh">可以在 Schema 中定义规则：<code>如果 A 持股 B > 50%，则 A 控制 B</code>。当数据写入时，SPG 引擎会自动推理出“控制”关系，而不需要在查询时临时计算。</span>
+                        <span class="lang-en">You can define a rule: <code>If A holds > 50% of B, then A controls B</code>. The SPG engine automatically infers the "Control" relation at write time, avoiding ad-hoc calculation at query time.</span>
+                    </li>
+                    <li>
+                        <span class="lang-zh"><strong>本方案设计：</strong> 目前的 Schema (3.1) 主要是静态的类型和属性定义（Python Class），缺少了嵌入 Schema 的动态逻辑规则。</span>
+                        <span class="lang-en"><strong>Current Design:</strong> The current Schema (3.1) is mainly static type and property definitions (Python Class), lacking dynamic logic rules embedded in the Schema.</span>
+                    </li>
+                    <li>
+                        <span class="lang-zh"><strong>影响：</strong> 对于极其复杂的隐式关系推理，本方案需要在查询阶段（Query Time）做更多工作，而 SPG 是在写入阶段（Write Time）或预计算阶段完成，查询效率更高。</span>
+                        <span class="lang-en"><strong>Impact:</strong> For extremely complex implicit relation reasoning, this scheme requires more work at Query Time, whereas SPG completes it at Write Time or pre-calculation, resulting in higher query efficiency.</span>
+                    </li>
                 </ul>
             </div>
         </section>
@@ -437,5 +847,14 @@ Return Calculate(($val1 - $val2) / $val2)</code></pre>
         </footer>
     </main>
 
+    <script>
+        function switchLanguage(lang) {
+            if (lang === 'en') {
+                document.body.classList.add('en-mode');
+            } else {
+                document.body.classList.remove('en-mode');
+            }
+        }
+    </script>
 </body>
 </html>
