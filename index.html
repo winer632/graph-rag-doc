@@ -39,21 +39,16 @@
            关键修复：语言切换与 Mermaid 兼容性处理
            ========================================= */
         
-        /* 1. 文本内容的切换：使用 display: none 即可 */
+        /* 1. 文本内容的切换 */
         .lang-en { display: none; }
         
         body.en-mode .lang-zh { display: none; }
         body.en-mode .lang-en { display: block; }
         body.en-mode span.lang-en { display: inline; }
 
-        /* 2. Mermaid 图表的切换：
-           不能使用 display: none，否则 Mermaid 无法计算 SVG 尺寸导致报错。
-           解决方法：使用 height: 0 + visibility: hidden 将其“折叠”但保留在渲染树中。
-        */
-        
-        /* 默认情况（中文模式）：隐藏英文图表 */
+        /* 2. Mermaid 图表的切换：使用 height: 0 隐藏以保持渲染 */
         body:not(.en-mode) .mermaid-container.lang-en {
-            display: block !important; /* 强制保持 block */
+            display: block !important;
             height: 0 !important;
             overflow: hidden !important;
             visibility: hidden !important;
@@ -63,9 +58,8 @@
             opacity: 0;
         }
 
-        /* 英文模式：隐藏中文图表 */
         body.en-mode .mermaid-container.lang-zh {
-            display: block !important; /* 强制保持 block */
+            display: block !important;
             height: 0 !important;
             overflow: hidden !important;
             visibility: hidden !important;
@@ -198,8 +192,20 @@
             border-radius: 8px;
             margin: 2rem 0;
             text-align: center;
-            /* 确保容器有基础宽度 */
             min-height: 50px; 
+        }
+
+        /* 参考文献列表 */
+        .ref-list li {
+            margin-bottom: 0.8rem;
+            word-break: break-all;
+        }
+        .ref-list a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        .ref-list a:hover {
+            text-decoration: underline;
         }
 
         /* 响应式设计 */
@@ -232,6 +238,11 @@
             <span class="lang-en">Table of Contents</span>
         </h3>
         <ul>
+            <!-- 新增背景章节 -->
+            <li><a href="#background">
+                <span class="lang-zh">0. 背景与动机</span>
+                <span class="lang-en">0. Background & Motivation</span>
+            </a></li>
             <li><a href="#overview">
                 <span class="lang-zh">1. 概述</span>
                 <span class="lang-en">1. Overview</span>
@@ -284,6 +295,11 @@
                 <span class="lang-zh">5. 方案分析与差距对比</span>
                 <span class="lang-en">5. Analysis & Gap Check</span>
             </a></li>
+            <!-- 新增参考文献 -->
+            <li><a href="#references">
+                <span class="lang-zh">6. 参考文献</span>
+                <span class="lang-en">6. References</span>
+            </a></li>
         </ul>
     </nav>
 
@@ -295,10 +311,34 @@
                 <span class="lang-en">Graph-RAG Technical Proposal (KAG Enhanced)</span>
             </h1>
             <p>
-                <span class="lang-zh"><strong>版本：</strong> v2.1 | <strong>状态：</strong> Draft | <strong>作者：</strong> 王欣鑫</span>
-                <span class="lang-en"><strong>Version:</strong> v2.1 | <strong>Status:</strong> Draft | <strong>Author:</strong> Xinxin Wang</span>
+                <!-- 版本号更新为 v2.2 -->
+                <span class="lang-zh"><strong>版本：</strong> v2.2 | <strong>状态：</strong> Draft | <strong>作者：</strong> 王欣鑫</span>
+                <span class="lang-en"><strong>Version:</strong> v2.2 | <strong>Status:</strong> Draft | <strong>Author:</strong> Xinxin Wang</span>
             </p>
         </header>
+
+        <!-- 新增背景与动机章节 -->
+        <section id="background">
+            <h2>
+                <span class="lang-zh">0. 背景与动机</span>
+                <span class="lang-en">0. Background & Motivation</span>
+            </h2>
+            <div class="warning-box" style="background-color: #f0f9ff; border-left-color: #2563eb;">
+                <p class="lang-zh">
+                    我们原本已经有一个成熟的 RAG 系统了，现在想要引入知识图谱以增强推理能力。然而，如果直接引入完整的 KAG 和 OpenSPG 框架，显得过于厚重，且难以与现有系统架构深度融合。
+                </p>
+                <p class="lang-zh">
+                    因此，本方案参考了 KAG 和 OpenSPG 的核心思想，设计了一套<strong>基于原有 RAG 系统引入知识图谱的轻量化方案</strong>。这可以被视为 KAG+OpenSPG 的简化版实现，旨在以最小的改造成本获取图谱带来的逻辑增强。
+                </p>
+                
+                <p class="lang-en">
+                    We already possess a mature RAG system and wish to introduce Knowledge Graphs to enhance reasoning capabilities. However, directly adopting the full KAG and OpenSPG frameworks appears too heavy and difficult to integrate deeply with our existing architecture.
+                </p>
+                <p class="lang-en">
+                    Therefore, drawing inspiration from the core philosophies of KAG and OpenSPG, we have designed a <strong>lightweight solution to incorporate Knowledge Graphs based on our original RAG system</strong>. This can be considered a simplified implementation of KAG+OpenSPG, aiming to gain logic enhancements with minimal refactoring costs.
+                </p>
+            </div>
+        </section>
 
         <section id="overview">
             <h2>
@@ -325,11 +365,6 @@
                 <span class="lang-zh">2. 总体架构图</span>
                 <span class="lang-en">2. Architecture Diagram</span>
             </h2>
-            <!-- 
-                修复说明：
-                1. 给所有中文标签加上双引号 ""，防止 Mermaid 解析器因特殊字符报错。
-                2. CSS 已修改为 height:0 隐藏，确保 Mermaid 能在后台正确渲染。
-            -->
             <div class="mermaid-container lang-zh">
                 <div class="mermaid">
 graph TD
@@ -838,6 +873,28 @@ Return Calculate(($val1 - $val2) / $val2)</code></pre>
                     </li>
                 </ul>
             </div>
+        </section>
+
+        <!-- 新增参考文献章节 -->
+        <section id="references">
+            <h2>
+                <span class="lang-zh">6. 参考文献</span>
+                <span class="lang-en">6. References</span>
+            </h2>
+            <ul class="ref-list">
+                <li>
+                    <span class="lang-zh"><strong>[1] 蚂蚁集团语义增强可编程知识图谱 SPG:</strong></span>
+                    <span class="lang-en"><strong>[1] Ant Group Semantic-enhanced Programmable Graph (SPG):</strong></span>
+                    <br>
+                    <a href="https://github.com/winer632/graph-rag-doc/releases/download/V2.1/SPG.pdf" target="_blank">https://github.com/winer632/graph-rag-doc/releases/download/V2.1/SPG.pdf</a>
+                </li>
+                <li>
+                    <span class="lang-zh"><strong>[2] OpenSPG/KAG GitHub 代码库:</strong></span>
+                    <span class="lang-en"><strong>[2] OpenSPG/KAG GitHub Repository:</strong></span>
+                    <br>
+                    <a href="https://github.com/OpenSPG/KAG" target="_blank">https://github.com/OpenSPG/KAG</a>
+                </li>
+            </ul>
         </section>
 
         <footer>
