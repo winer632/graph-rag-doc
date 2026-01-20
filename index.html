@@ -680,8 +680,8 @@ sequenceDiagram
             </h4>
             <ul>
                 <li>
-                    <span class="lang-zh"><strong>输入：</strong> "A公司2023年的营收相比2022年增长了多少？"</span>
-                    <span class="lang-en"><strong>Input:</strong> "How much did Company A's revenue grow in 2023 compared to 2022?"</span>
+                    <span class="lang-zh"><strong>输入：</strong> "A公司的大股东还投资了哪些其他科技公司？"</span>
+                    <span class="lang-en"><strong>Input:</strong> "Which other technology companies has Company A’s major shareholder invested in?"</span>
                 </li>
                 <li>
                     <span class="lang-zh"><strong>输出计划 (KGDSL 伪代码)：</strong></span>
@@ -689,23 +689,38 @@ sequenceDiagram
                 </li>
             </ul>
             <pre class="lang-zh"><code class="language-text">// 1. 实体锚定 (由 Entity Linking 模块完成，非 LLM 生成)
-$e = Entity(type="Company", id="1001") 
+$company_a = Entity(type="Company", id="1001")
 
-// 2. 属性获取 (Schema 约束 LLM 生成)
-$val1 = $e.get_property("revenue", date="2023")
-$val2 = $e.get_property("revenue", date="2022")
+// 2. 第一跳遍历：找大股东 (Traversal 1)
+// 从 A公司 跳到 人
+$shareholder = $company_a.get_neighbor(relation="has_shareholder", role="major")
 
-// 3. 逻辑计算 (Solver 内置算子)
-Return Calculate(($val1 - $val2) / $val2)</code></pre>
+// 3. 第二跳遍历：找投资的其他公司 (Traversal 2)
+// 从 人 跳到 其他公司
+$invested_companies = $shareholder.get_neighbor(relation="invested_in")
+
+// 4. 过滤：只保留科技公司 (Filtering)
+$tech_companies = Filter($invested_companies, type="Technology")
+
+// 5. 返回结果
+Return $tech_companies.name</code></pre>
             <pre class="lang-en"><code class="language-text">// 1. Entity Anchoring (Done by Entity Linking module, not LLM generation)
-$e = Entity(type="Company", id="1001") 
+$company_a = Entity(type="Company", id="1001")
 
-// 2. Property Retrieval (Schema constrained LLM generation)
-$val1 = $e.get_property("revenue", date="2023")
-$val2 = $e.get_property("revenue", date="2022")
+// 2. First-hop traversal: find major shareholders (Traversal 1)
+// From Company A → Person
+$shareholder = $company_a.get_neighbor(relation="has_shareholder", role="major")
 
-// 3. Logic Calculation (Solver built-in operators)
-Return Calculate(($val1 - $val2) / $val2)</code></pre>
+// 3. Second-hop traversal: find other invested companies (Traversal 2)
+// From Person → Other companies
+$invested_companies = $shareholder.get_neighbor(relation="invested_in")
+
+// 4. Filtering: keep only technology companies (Filtering)
+$tech_companies = Filter($invested_companies, type="Technology")
+
+// 5. Return results
+Return $tech_companies.name
+</code></pre>
 
             <h4>
                 <span class="lang-zh">实体链接实现逻辑 (伪代码)：</span>
